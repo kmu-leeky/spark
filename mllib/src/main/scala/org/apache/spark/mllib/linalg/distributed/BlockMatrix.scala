@@ -427,16 +427,16 @@ class BlockMatrix @Since("1.3.0") (
       other: BlockMatrix,
       partitioner: GridPartitioner,
       midDimSplitNum: Int): (BlockDestinations, BlockDestinations) = {
-    val leftMatrix = blockInfo.keys.collect()
-    val rightMatrix = other.blockInfo.keys.collect()
+    val leftMatrix = blockInfo.keys.collect() // 4X2 matrix Array[(Int, Int)] = Array((0,0), (0,1), (1,0), (1,1), (2,0), (2,1), (3,0), (3,1))
+    val rightMatrix = other.blockInfo.keys.collect()  //2X4 matrix Array[(Int, Int)] = Array((0,0), (0,1), (0,2), (0,3), (1,0), (1,1), (1,2), (1,3))
 
-    val rightCounterpartsHelper = rightMatrix.groupBy(_._1).mapValues(_.map(_._2))
+    val rightCounterpartsHelper = rightMatrix.groupBy(_._1).mapValues(_.map(_._2))  //Map[Int,Array[Int]] = Map(1 -> Array(0, 1, 2, 3), 0 -> Array(0, 1, 2, 3))
     val leftDestinations = leftMatrix.map { case (rowIndex, colIndex) =>
       val rightCounterparts = rightCounterpartsHelper.getOrElse(colIndex, Array.empty[Int])
       val partitions = rightCounterparts.map(b => partitioner.getPartition((rowIndex, b)))
       val midDimSplitIndex = colIndex % midDimSplitNum
       ((rowIndex, colIndex),
-        partitions.toSet.map((pid: Int) => pid * midDimSplitNum + midDimSplitIndex))
+        partitions.toSet.map((pid: Int) => pid * midDimSplitNum + midDimSplitIndex))  //partitions is the set of output index that matches with the left matrix
     }.toMap
 
     val leftCounterpartsHelper = leftMatrix.groupBy(_._2).mapValues(_.map(_._1))
@@ -495,14 +495,19 @@ class BlockMatrix @Since("1.3.0") (
     if (colsPerBlock == other.rowsPerBlock) {
       val resultPartitioner = GridPartitioner(numRowBlocks, other.numColBlocks,
         math.max(blocks.partitions.length, other.blocks.partitions.length))
+      // leftDestinations looks like val leftDestinations = List((0,0)->Set(0,4,8,12),(0,1)->Set(0,4,8,12),(1,0)->Set(1,5,9,13),(1,1)->Set(1,5,9,13),(2,0)->Set(2,6,10,14),(2,1)->Set(2,6,10,14),(3,0)->Set(3,7,11,15),(3,1)->Set(3,7,11,15)).toMap
+      // for left matrix of 4X2 and right matrix of 2X4, output matrix is 4X4, and the leftDestinations contains
+      // block ID -> Set(the index in output matrix), For example, output is in the column major order, (0,0) block of left matrix is used for output of 0,4,8,12
       val (leftDestinations, rightDestinations)
         = simulateMultiply(other, resultPartitioner, numMidDimSplits)
       // Each block of A must be multiplied with the corresponding blocks in the columns of B.
+      // flatA looks like the index of output matrix, and the left matrix block index and blocks.
       val flatA = blocks.flatMap { case ((blockRowIndex, blockColIndex), block) =>
         val destinations = leftDestinations.getOrElse((blockRowIndex, blockColIndex), Set.empty)
         destinations.map(j => (j, (blockRowIndex, blockColIndex, block)))
       }
       // Each block of B must be multiplied with the corresponding blocks in each row of A.
+      // flatB contains the index of output matrix and the block ID of right matrix and block
       val flatB = other.blocks.flatMap { case ((blockRowIndex, blockColIndex), block) =>
         val destinations = rightDestinations.getOrElse((blockRowIndex, blockColIndex), Set.empty)
         destinations.map(j => (j, (blockRowIndex, blockColIndex, block)))
@@ -511,6 +516,7 @@ class BlockMatrix @Since("1.3.0") (
         override def numPartitions: Int = resultPartitioner.numPartitions * numMidDimSplits
         override def getPartition(key: Any): Int = key.asInstanceOf[Int]
       }
+      // cogroup allow to map the output id with corresponding left and right matrix block
       val newBlocks = flatA.cogroup(flatB, intermediatePartitioner).flatMap { case (pId, (a, b)) =>
         a.flatMap { case (leftRowIndex, leftColIndex, leftBlock) =>
           b.filter(_._1 == leftColIndex).map { case (rightRowIndex, rightColIndex, rightBlock) =>
