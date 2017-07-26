@@ -28,7 +28,7 @@ import org.apache.spark.util.{AccumulatorContext, AccumulatorMetadata, LegacyAcc
 
 
 /**
- * A data type that can be accumulated, i.e. has an commutative and associative "add" operation,
+ * A data type that can be accumulated, i.e. has a commutative and associative "add" operation,
  * but where the result type, `R`, may be different from the element type being added, `T`.
  *
  * You must define how to add data, and how to merge two of these together.  For some data types,
@@ -201,7 +201,8 @@ trait AccumulableParam[R, T] extends Serializable {
 
 @deprecated("use AccumulatorV2", "2.0.0")
 private[spark] class
-GrowableAccumulableParam[R <% Growable[T] with TraversableOnce[T] with Serializable: ClassTag, T]
+GrowableAccumulableParam[R : ClassTag, T]
+  (implicit rg: R => Growable[T] with TraversableOnce[T] with Serializable)
   extends AccumulableParam[R, T] {
 
   def addAccumulator(growable: R, elem: T): R = {

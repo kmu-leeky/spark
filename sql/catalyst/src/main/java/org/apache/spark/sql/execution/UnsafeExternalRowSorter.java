@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution;
 
 import java.io.IOException;
 
+import scala.collection.AbstractIterator;
 import scala.collection.Iterator;
 import scala.math.Ordering;
 
@@ -28,7 +29,6 @@ import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
-import org.apache.spark.sql.catalyst.util.AbstractScalaRowIterator;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.util.collection.unsafe.sort.PrefixComparator;
@@ -38,6 +38,7 @@ import org.apache.spark.util.collection.unsafe.sort.UnsafeSorterIterator;
 
 public final class UnsafeExternalRowSorter {
 
+  static final int DEFAULT_INITIAL_SORT_BUFFER_SIZE = 4096;
   /**
    * If positive, forces records to be spilled to disk at the given frequency (measured in numbers
    * of records). This is only intended to be used in tests.
@@ -51,7 +52,20 @@ public final class UnsafeExternalRowSorter {
   private final UnsafeExternalSorter sorter;
 
   public abstract static class PrefixComputer {
-    abstract long computePrefix(InternalRow row);
+
+    public static class Prefix {
+      /** Key prefix value, or the null prefix value if isNull = true. **/
+      long value;
+
+      /** Whether the key is null. */
+      boolean isNull;
+    }
+
+    /**
+     * Computes prefix for the given row. For efficiency, the returned object may be reused in
+     * further calls to a given PrefixComputer.
+     */
+    abstract Prefix computePrefix(InternalRow row);
   }
 
   public UnsafeExternalRowSorter(
@@ -72,8 +86,11 @@ public final class UnsafeExternalRowSorter {
       taskContext,
       new RowComparator(ordering, schema.length()),
       prefixComparator,
-      /* initialSize */ 4096,
+      sparkEnv.conf().getInt("spark.shuffle.sort.initialBufferSize",
+                             DEFAULT_INITIAL_SORT_BUFFER_SIZE),
       pageSizeBytes,
+      SparkEnv.get().conf().getLong("spark.shuffle.spill.numElementsForceSpillThreshold",
+        UnsafeExternalSorter.DEFAULT_NUM_ELEMENTS_FOR_SPILL_THRESHOLD),
       canUseRadixSort
     );
   }
@@ -88,12 +105,13 @@ public final class UnsafeExternalRowSorter {
   }
 
   public void insertRow(UnsafeRow row) throws IOException {
-    final long prefix = prefixComputer.computePrefix(row);
+    final PrefixComputer.Prefix prefix = prefixComputer.computePrefix(row);
     sorter.insertRecord(
       row.getBaseObject(),
       row.getBaseOffset(),
       row.getSizeInBytes(),
-      prefix
+      prefix.value,
+      prefix.isNull
     );
     numRowsInserted++;
     if (testSpillFrequency > 0 && (numRowsInserted % testSpillFrequency) == 0) {
@@ -127,7 +145,7 @@ public final class UnsafeExternalRowSorter {
         // here in order to prevent memory leaks.
         cleanupResources();
       }
-      return new AbstractScalaRowIterator<UnsafeRow>() {
+      return new AbstractIterator<UnsafeRow>() {
 
         private final int numFields = schema.length();
         private UnsafeRow row = new UnsafeRow(numFields);
