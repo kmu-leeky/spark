@@ -501,7 +501,8 @@ class BlockMatrix @Since("1.3.0") (
       val (leftDestinations, rightDestinations)
         = simulateMultiply(other, resultPartitioner, numMidDimSplits)
       // Each block of A must be multiplied with the corresponding blocks in the columns of B.
-      // flatA looks like the index of output matrix, and the left matrix block index and blocks.
+      // flatA looks like the index of output matrix, and the left matrix block index and blocks that exist in the current worker.
+      // In this step, the shuffle does not happen. The executor simply write the output ID with the corresponding left/right matrix block position and blocks - For 2X2 %*% 2X2 matrix, a block is written twice, and the same block is written twice.
       val flatA = blocks.flatMap { case ((blockRowIndex, blockColIndex), block) =>
         val destinations = leftDestinations.getOrElse((blockRowIndex, blockColIndex), Set.empty)
         destinations.map(j => (j, (blockRowIndex, blockColIndex, block)))
