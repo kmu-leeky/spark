@@ -493,6 +493,8 @@ class BlockMatrix @Since("1.3.0") (
       "initializing them.")
     require(numMidDimSplits > 0, "numMidDimSplits should be a positive integer.")
     if (colsPerBlock == other.rowsPerBlock) {
+      // resultPartitioner represent only the shpae of the output matrix.
+      // In case of multipliation of 1*1 and 1*32 matrix, the rp becomes (1, 32, 1, 6)  --> distribution of output task
       val resultPartitioner = GridPartitioner(numRowBlocks, other.numColBlocks,
         math.max(blocks.partitions.length, other.blocks.partitions.length))
       // leftDestinations looks like val leftDestinations = List((0,0)->Set(0,4,8,12),(0,1)->Set(0,4,8,12),(1,0)->Set(1,5,9,13),(1,1)->Set(1,5,9,13),(2,0)->Set(2,6,10,14),(2,1)->Set(2,6,10,14),(3,0)->Set(3,7,11,15),(3,1)->Set(3,7,11,15)).toMap
