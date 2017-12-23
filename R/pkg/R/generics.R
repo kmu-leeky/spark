@@ -385,7 +385,7 @@ setGeneric("value", function(bcast) { standardGeneric("value") })
 #' @return A SparkDataFrame.
 #' @rdname summarize
 #' @export
-setGeneric("agg", function (x, ...) { standardGeneric("agg") })
+setGeneric("agg", function(x, ...) { standardGeneric("agg") })
 
 #' alias
 #'
@@ -409,7 +409,8 @@ setGeneric("as.data.frame",
              standardGeneric("as.data.frame")
            })
 
-#' @rdname attach
+# Do not document the generic because of signature changes across R versions
+#' @noRd
 #' @export
 setGeneric("attach")
 
@@ -521,7 +522,7 @@ setGeneric("gapplyCollect", function(x, ...) { standardGeneric("gapplyCollect") 
 # @export
 setGeneric("getNumPartitions", function(x) { standardGeneric("getNumPartitions") })
 
-#' @rdname summary
+#' @rdname describe
 #' @export
 setGeneric("describe", function(x, col, ...) { standardGeneric("describe") })
 
@@ -645,7 +646,7 @@ setGeneric("repartition", function(x, ...) { standardGeneric("repartition") })
 #' @rdname sample
 #' @export
 setGeneric("sample",
-           function(x, withReplacement, fraction, seed) {
+           function(x, withReplacement = FALSE, fraction, seed) {
              standardGeneric("sample")
            })
 
@@ -656,7 +657,7 @@ setGeneric("rollup", function(x, ...) { standardGeneric("rollup") })
 #' @rdname sample
 #' @export
 setGeneric("sample_frac",
-           function(x, withReplacement, fraction, seed) { standardGeneric("sample_frac") })
+           function(x, withReplacement = FALSE, fraction, seed) { standardGeneric("sample_frac") })
 
 #' @rdname sampleBy
 #' @export
@@ -731,7 +732,7 @@ setGeneric("schema", function(x) { standardGeneric("schema") })
 
 #' @rdname select
 #' @export
-setGeneric("select", function(x, col, ...) { standardGeneric("select") } )
+setGeneric("select", function(x, col, ...) { standardGeneric("select") })
 
 #' @rdname selectExpr
 #' @export
@@ -768,6 +769,10 @@ setGeneric("union", function(x, y) { standardGeneric("union") })
 #' @rdname union
 #' @export
 setGeneric("unionAll", function(x, y) { standardGeneric("unionAll") })
+
+#' @rdname unionByName
+#' @export
+setGeneric("unionByName", function(x, y) { standardGeneric("unionByName") })
 
 #' @rdname unpersist
 #' @export
@@ -1041,7 +1046,17 @@ setGeneric("date_sub", function(y, x) { standardGeneric("date_sub") })
 #' @rdname column_datetime_functions
 #' @export
 #' @name NULL
+setGeneric("date_trunc", function(format, x) { standardGeneric("date_trunc") })
+
+#' @rdname column_datetime_functions
+#' @export
+#' @name NULL
 setGeneric("dayofmonth", function(x) { standardGeneric("dayofmonth") })
+
+#' @rdname column_datetime_functions
+#' @export
+#' @name NULL
+setGeneric("dayofweek", function(x) { standardGeneric("dayofweek") })
 
 #' @rdname column_datetime_functions
 #' @export
@@ -1212,6 +1227,16 @@ setGeneric("lpad", function(x, len, pad) { standardGeneric("lpad") })
 #' @export
 #' @name NULL
 setGeneric("ltrim", function(x) { standardGeneric("ltrim") })
+
+#' @rdname column_collection_functions
+#' @export
+#' @name NULL
+setGeneric("map_keys", function(x) { standardGeneric("map_keys") })
+
+#' @rdname column_collection_functions
+#' @export
+#' @name NULL
+setGeneric("map_values", function(x) { standardGeneric("map_values") })
 
 #' @rdname column_misc_functions
 #' @export
@@ -1555,12 +1580,9 @@ setGeneric("year", function(x) { standardGeneric("year") })
 #' @export
 setGeneric("fitted")
 
-#' @param x,y For \code{glm}: logical values indicating whether the response vector
-#'          and model matrix used in the fitting process should be returned as
-#'          components of the returned value.
-#' @inheritParams stats::glm
-#' @rdname glm
+# Do not carry stats::glm usage and param here, and do not document the generic
 #' @export
+#' @noRd
 setGeneric("glm")
 
 #' @param object a fitted ML model object.
